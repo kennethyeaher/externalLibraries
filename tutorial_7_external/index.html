@@ -25,7 +25,7 @@
     <main id="main">
         <section class="loading-section" aria-labelledby="load-heading">
             <h2 id="load-heading">Start with the restaurant data</h2>
-            <p>All three examples use the same eight records from the course dataset.</p>
+            <p>All three examples use the same eight records from the course dataset. Filters affect every view.</p>
             <p id="loading-status" role="status">Ready to load restaurants.</p>
             <button id="load-data-button">Load restaurant data</button>
             <noscript><p>JavaScript is required for these demos. You can still inspect restaurants.json in the repository.</p></noscript>
@@ -39,11 +39,33 @@
             </div>
             <p class="note">If a library cannot load, the restaurant information stays available in text.</p>
         </section>
+        <section class="explorer" aria-labelledby="explore-heading">
+            <p class="eyebrow">Explore / Compare / Decide</p>
+            <h2 id="explore-heading">Find a restaurant that fits</h2>
+            <p>Search and filter once. The chart, map, and cards show the same results.</p>
+            <form id="explore-form">
+                <label for="restaurant-search">Name, cuisine, or neighborhood<input id="restaurant-search" type="search" placeholder="Try College Park" disabled></label>
+                <label for="cuisine-filter">Cuisine<select id="cuisine-filter" disabled><option value="all">All cuisines</option></select></label>
+                <label for="price-filter">Price<select id="price-filter" disabled><option value="all">Any price</option><option>$</option><option>$$</option><option>$$$</option><option>$$$$</option></select></label>
+                <label for="rating-filter">Minimum rating<select id="rating-filter" disabled><option value="0">Any rating</option><option value="4">4.0 or higher</option><option value="4.5">4.5 or higher</option></select></label>
+                <label for="sort-order">Sort results<select id="sort-order" disabled><option value="name">Name</option><option value="rating">Highest rating</option><option value="price">Lowest price</option></select></label>
+                <button id="reset-filters" type="button" disabled>Reset filters</button>
+            </form>
+            <p id="results-summary" role="status">Load restaurant data to explore.</p>
+            <button id="download-results" disabled>Download results as JSON</button>
+        </section>
+        <section class="comparison" id="comparison" aria-labelledby="compare-heading">
+            <h2 id="compare-heading">Compare your shortlist</h2>
+            <p>Use the Compare buttons on restaurant cards to keep up to three choices side by side. Your shortlist stays selected when you change filters.</p>
+            <p id="compare-message" role="status">No restaurants selected.</p>
+            <div id="comparison-table" class="table-scroll"></div>
+            <button id="clear-shortlist" disabled>Clear shortlist</button>
+        </section>
         <section id="examples-section" aria-label="Three library examples">
             <article class="example-card" id="chart-example">
                 <div class="example-heading"><p class="eyebrow">Chart.js / Compare</p><h2>Cuisines at a glance</h2></div>
                 <p>Count restaurants in each cuisine. This sample has one restaurant per cuisine, so every bar has the same height.</p>
-                <button id="chart-button" class="demo-button" disabled>Show cuisine chart</button>
+                <div class="controls"><button id="chart-button" class="demo-button" disabled>Show cuisine chart</button><label for="chart-metric">Chart view<select id="chart-metric" disabled><option value="cuisine">Cuisine counts</option><option value="rating">Restaurant ratings</option></select></label></div>
                 <p id="chart-message" role="status">Load the dataset to begin.</p>
                 <div class="chart-container"><canvas id="restaurant-chart" role="img" aria-label="Restaurant counts by cuisine; exact values appear in the table below"></canvas></div>
                 <div id="chart-table"></div>
@@ -52,7 +74,7 @@
             <article class="example-card" id="map-example">
                 <div class="example-heading"><p class="eyebrow">Leaflet / Locate</p><h2>A different view of the neighborhood</h2></div>
                 <p class="note">Illustrative locations only. The supplied dataset has no coordinates or street addresses. These markers are stable sample positions, not directions to real restaurants.</p>
-                <div class="controls"><button id="map-button" class="demo-button" disabled>Show restaurant map</button><label for="cuisine-filter">Filter by cuisine<select id="cuisine-filter" disabled><option value="all">All cuisines</option></select></label></div>
+                <button id="map-button" class="demo-button" disabled>Show restaurant map</button>
                 <p id="map-message" role="status">Load the dataset to begin.</p>
                 <div id="restaurant-map" aria-label="Interactive map of illustrative restaurant positions"></div>
                 <ul id="location-list" aria-label="Restaurants shown on the map"></ul>
@@ -63,6 +85,7 @@
                 <p>A staggered entrance reveals the same records. Cards remain visible if animation is unavailable or reduced motion is enabled.</p>
                 <button id="animation-button" class="demo-button" disabled>Animate restaurant cards</button>
                 <p id="animation-message" role="status">Load the dataset to begin.</p>
+                <p><a href="#comparison">View your comparison shortlist</a></p>
                 <div id="restaurant-cards" class="cards-container"></div>
                 <details><summary>See the integration pattern</summary><pre><code>gsap.fromTo(elements, fromState, toState);</code></pre></details>
             </article>

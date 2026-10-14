@@ -52,6 +52,7 @@ test('all demos work, chart repeats, map filters and popups open, animation repl
         assert.equal(await page.locator('#location-list li').count(), 1);
         await page.locator('.leaflet-marker-icon').click();
         assert.match(await page.locator('.leaflet-popup-content').textContent(), /Sakura Sushi.*Japanese.*4.2/);
+        await page.locator('#reset-filters').click();
         await page.locator('#animation-button').click();
         await page.locator('#animation-button').click();
         await page.waitForFunction(() => [...document.querySelectorAll('.restaurant-card')].every(card => getComputedStyle(card).opacity === '1'));
@@ -73,9 +74,11 @@ test('blocked library scripts preserve table, filtered list, and static cards', 
         await page.locator('#animation-button').click();
         assert.equal(await page.locator('#chart-table tbody tr').count(), 8);
         assert.equal(await page.locator('#location-list li').count(), 8);
+        assert.equal(await page.locator('.restaurant-card').count(), 8);
         await page.locator('#cuisine-filter').selectOption('Italian');
         assert.equal(await page.locator('#location-list li').count(), 1);
-        assert.equal(await page.locator('.restaurant-card').count(), 8);
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 1);
+        assert.equal(await page.locator('.restaurant-card').count(), 1);
         assert.equal(await page.locator('.restaurant-card').first().evaluate(card => getComputedStyle(card).opacity), '1');
     });
 });
@@ -172,6 +175,8 @@ test('desktop and narrow layouts fit the viewport and keyboard activates loading
     for (const width of [320, 390, 1440]) {
         await withPage({ viewport: { width, height: 900 } }, async page => {
             await page.goto(`${origin}/tutorial_7_external/`);
+            await page.keyboard.press('Tab');
+            assert.equal(await page.locator('.skip-link').evaluate(link => link === document.activeElement && link.getBoundingClientRect().left >= 0), true);
             await page.locator('#load-data-button').focus();
             await page.keyboard.press('Enter');
             await page.waitForFunction(() => document.querySelector('#loading-status').textContent === '8 restaurants loaded.');
@@ -192,5 +197,106 @@ test('a stalled data request times out and offers retry', async () => {
         await page.waitForFunction(() => document.querySelector('#loading-status').textContent.includes('timed out'), { timeout: 15000 });
         assert.equal(await page.locator('#load-data-button').textContent(), 'Try again');
         assert.equal(await page.locator('#load-data-button').isEnabled(), true);
+    });
+});
+
+
+test('shared filters synchronize chart, map, cards, summary, and empty state recovery', async () => {
+    await withPage({}, async page => {
+        await loadRecords(page);
+        await page.locator('#chart-button').click();
+        await page.locator('#map-button').click();
+        await page.locator('#restaurant-search').fill('College Park');
+        assert.equal(await page.locator('.restaurant-card').count(), 2);
+        assert.equal(await page.locator('.leaflet-marker-icon').count(), 2);
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 2);
+        assert.match(await page.locator('#results-summary').textContent(), /2 of 8.*4.40/);
+        await page.locator('#price-filter').selectOption('$');
+        assert.equal(await page.locator('.restaurant-card').count(), 1);
+        assert.match(await page.locator('.restaurant-card h4').textContent(), /Pho Corner/);
+        await page.locator('#rating-filter').selectOption('4.5');
+        assert.equal(await page.locator('.restaurant-card').count(), 0);
+        assert.equal(await page.locator('.leaflet-marker-icon').count(), 0);
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 0);
+        assert.equal(await page.locator('#download-results').isDisabled(), true);
+        assert.match(await page.locator('#results-summary').textContent(), /No restaurants/);
+        await page.locator('#animation-button').click();
+        assert.match(await page.locator('#animation-message').textContent(), /No cards to animate/);
+        await page.locator('#reset-filters').click();
+        assert.equal(await page.locator('.restaurant-card').count(), 8);
+        assert.equal(await page.locator('.leaflet-marker-icon').count(), 8);
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 8);
+    });
+});
+
+test('comparison enforces three choices and keeps selected records across filters', async () => {
+    await withPage({}, async page => {
+        await loadRecords(page);
+        const buttons = page.locator('.restaurant-card button');
+        await buttons.nth(0).click();
+        await buttons.nth(1).click();
+        await buttons.nth(2).click();
+        assert.equal(await page.locator('#comparison-table thead th').count(), 4);
+        await buttons.nth(3).click();
+        assert.match(await page.locator('#compare-message').textContent(), /up to three/);
+        assert.equal(await buttons.nth(3).getAttribute('aria-pressed'), 'false');
+        await page.locator('#restaurant-search').fill('nothing matches this');
+        assert.equal(await page.locator('.restaurant-card').count(), 0);
+        assert.equal(await page.locator('#comparison-table thead th').count(), 4);
+        await page.locator('#reset-filters').click();
+        assert.equal(await page.locator('.restaurant-card button[aria-pressed="true"]').count(), 3);
+        await buttons.nth(0).click();
+        assert.equal(await page.locator('#comparison-table thead th').count(), 3);
+        await page.locator('#clear-shortlist').click();
+        assert.equal(await page.locator('#comparison-table table').count(), 0);
+        assert.equal(await page.locator('.restaurant-card button[aria-pressed="true"]').count(), 0);
+    });
+});
+
+test('rating chart uses exact source ratings and map list buttons open the matching popup', async () => {
+    await withPage({}, async page => {
+        await loadRecords(page);
+        await page.locator('#sort-order').selectOption('rating');
+        assert.equal(await page.locator('.restaurant-card h4').first().textContent(), 'The Brass Elephant');
+        await page.locator('#chart-metric').selectOption('rating');
+        assert.equal(await page.evaluate(() => Chart.getChart(document.querySelector('canvas')).data.datasets[0].data[0]), 4.8);
+        assert.equal(await page.evaluate(() => Chart.getChart(document.querySelector('canvas')).options.scales.x.max), 5);
+        await page.locator('#map-button').click();
+        await page.getByRole('button', { name: "Show Milano's Italian Restaurant on map", exact: true }).click();
+        assert.match(await page.locator('.leaflet-popup-content').textContent(), /Milano's Italian Restaurant/);
+        await page.locator('#chart-metric').selectOption('cuisine');
+        assert.deepEqual(await page.evaluate(() => Chart.getChart(document.querySelector('canvas')).data.datasets[0].data), Array(8).fill(1));
+    });
+});
+
+test('download exports only matching original restaurant records', async () => {
+    await withPage({ acceptDownloads: true }, async page => {
+        await loadRecords(page);
+        await page.locator('#restaurant-search').fill('College Park');
+        const downloadPromise = page.waitForEvent('download');
+        await page.locator('#download-results').click();
+        const download = await downloadPromise;
+        assert.equal(download.suggestedFilename(), 'restaurant-results.json');
+        const filesystem = require('node:fs/promises');
+        const exported = JSON.parse(await filesystem.readFile(await download.path(), 'utf8'));
+        assert.deepEqual(exported.map(restaurant => restaurant.id), [1, 5]);
+        assert.deepEqual(exported, records.filter(restaurant => restaurant.neighborhood === 'College Park'));
+    });
+});
+
+test('extended exploration and comparison work when every external library is blocked', async () => {
+    await withPage({ viewport: { width: 320, height: 900 } }, async page => {
+        await page.route(/(chart\.min\.js|leaflet\.js|gsap\.min\.js)/, route => route.abort());
+        await loadRecords(page);
+        await page.locator('#chart-metric').selectOption('rating');
+        await page.locator('#map-button').click();
+        await page.locator('#rating-filter').selectOption('4.5');
+        assert.equal(await page.locator('.restaurant-card').count(), 3);
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 3);
+        assert.equal(await page.locator('#location-list li').count(), 3);
+        assert.equal(await page.locator('#location-list button:visible').count(), 0);
+        await page.locator('.restaurant-card button').first().click();
+        assert.equal(await page.locator('#comparison-table table').count(), 1);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     });
 });

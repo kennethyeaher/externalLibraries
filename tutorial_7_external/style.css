@@ -55,8 +55,8 @@ pre { overflow-x: auto; background: var(--paper); padding: 16px; font-size: 0.85
 .pattern-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding-left: 20px; gap: 28px; font-size: 0.9rem; }
 .pattern-grid strong { display: block; }
 footer { padding: 8px 0 32px; color: var(--muted); font-size: 0.85rem; }
-.skip-link { position: fixed; top: -100px; left: 12px; background: white; padding: 12px; z-index: 9999; }
-.skip-link:focus { top: 12px; }
+.skip-link { position: fixed; top: 12px; left: -10000px; background: white; padding: 12px; z-index: 9999; }
+.skip-link:focus { left: 12px; }
 [hidden] { display: none !important; }
 /* Stack the examples on small screens without shrinking the controls. */
 @media (max-width: 650px) {
@@ -72,3 +72,18 @@ footer { padding: 8px 0 32px; color: var(--muted); font-size: 0.85rem; }
     #restaurant-map { height: 320px; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Keep exploration controls and comparison details readable at every viewport width. */
+.explorer, .comparison { background: white; padding: 32px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 24px; }
+#explore-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: end; }
+#explore-form label { font-size: 0.9rem; font-weight: 600; }
+input { width: 100%; min-height: 46px; font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; }
+.table-scroll { overflow-x: auto; }
+.comparison table { min-width: 480px; }
+.restaurant-card button { margin-top: 16px; background: white; color: var(--blue); }
+.restaurant-card button[aria-pressed="true"] { background: var(--blue); color: white; }
+#location-list button { display: block; font-size: 0.85rem; min-height: 36px; padding: 4px 10px; margin-top: 6px; background: white; color: var(--blue); }
+@media (max-width: 650px) {
+    .explorer, .comparison { padding: 24px 20px; }
+    #explore-form { grid-template-columns: 1fr; }
+}

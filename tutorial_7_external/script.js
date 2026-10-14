@@ -1,5 +1,5 @@
 import { loadRestaurantData, checkAllLibraryStatus, createRestaurantCards, createTextElement } from './tutorial-support.js';
-import { countCuisines, getRestaurantCoordinates } from './data.js';
+import { countCuisines, getRestaurantCoordinates, selectRestaurants } from './data.js';
 
 // Keep the shared dataset and library instances in one place.
 let restaurants = [];
@@ -7,6 +7,10 @@ let myChart = null;
 let myMap = null;
 let markers = null;
 let cardAnimation = null;
+let chartRequested = false;
+let mapRequested = false;
+const shortlist = new Set();
+const markerById = new Map();
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const loadButton = document.querySelector('#load-data-button');
 
@@ -19,15 +23,15 @@ async function clickToLoad() {
         document.querySelector('#loading-status').textContent = `${restaurants.length} restaurants loaded.`;
         document.querySelectorAll('.demo-button').forEach(button => { button.disabled = false; });
         const filter = document.querySelector('#cuisine-filter');
+        const previousCuisine = filter.value;
         filter.replaceChildren(new Option('All cuisines', 'all'));
         countCuisines(restaurants).labels.forEach(cuisine => filter.add(new Option(cuisine, cuisine)));
-        filter.disabled = false;
-        restoreVisibleCards();
-        createRestaurantCards(restaurants);
+        if ([...filter.options].some(option => option.value === previousCuisine)) filter.value = previousCuisine;
+        document.querySelectorAll('#explore-form input, #explore-form select, #explore-form button, #chart-metric').forEach(control => { control.disabled = false; });
+        updateExplorer();
         checkAllLibraryStatus();
         loadButton.textContent = 'Reload restaurant data';
-        if (myChart) createMyChart();
-        if (myMap) createMyMap();
+
     } catch (error) {
         const message = error.name === 'TimeoutError' ? 'The request timed out.' : error.message;
         document.querySelector('#loading-status').textContent = `${message} Select Try again to retry.${restaurants.length ? ' Previous data is still available.' : ''}`;
@@ -42,18 +46,30 @@ loadButton.addEventListener('click', clickToLoad);
 checkAllLibraryStatus();
 document.querySelector('#chart-button').addEventListener('click', createMyChart);
 document.querySelector('#map-button').addEventListener('click', createMyMap);
-document.querySelector('#cuisine-filter').addEventListener('change', createMyMap);
+document.querySelector('#explore-form').addEventListener('input', updateExplorer);
+document.querySelector('#explore-form').addEventListener('submit', event => event.preventDefault());
+document.querySelector('#reset-filters').addEventListener('click', resetFilters);
+document.querySelector('#chart-metric').addEventListener('change', createMyChart);
+document.querySelector('#download-results').addEventListener('click', downloadResults);
+document.querySelector('#restaurant-cards').addEventListener('click', toggleComparison);
+document.querySelector('#clear-shortlist').addEventListener('click', clearShortlist);
 document.querySelector('#animation-button').addEventListener('click', animateMyCards);
 reducedMotion.addEventListener('change', restoreVisibleCards);
 
-/** Render cuisine totals as a table and enhance them with a bar chart when Chart.js is available. */
+/** Render exact cuisine counts or ratings as a table and enhance them with Chart.js when available. */
 function createMyChart() {
     if (!restaurants.length) return;
-    const { labels, counts } = countCuisines(restaurants);
+    chartRequested = true;
+    const selected = getSelectedRestaurants();
+    const isRating = document.querySelector('#chart-metric').value === 'rating';
+    const cuisineTotals = countCuisines(selected);
+    const labels = isRating ? selected.map(restaurant => restaurant.name) : cuisineTotals.labels;
+    const counts = isRating ? selected.map(restaurant => restaurant.rating) : cuisineTotals.counts;
+    const metricTitle = isRating ? 'Restaurant ratings' : 'Restaurants by cuisine';
     const table = document.createElement('table');
-    table.append(createTextElement('caption', 'Restaurants by cuisine'));
+    table.append(createTextElement('caption', metricTitle));
     const header = document.createElement('tr');
-    ['Cuisine', 'Restaurants'].forEach(text => {
+    (isRating ? ['Restaurant', 'Rating / 5'] : ['Cuisine', 'Restaurants']).forEach(text => {
         const cell = createTextElement('th', text);
         cell.scope = 'col';
         header.append(cell);
@@ -71,41 +87,61 @@ function createMyChart() {
     const message = document.querySelector('#chart-message');
     const canvas = document.querySelector('#restaurant-chart');
     canvas.hidden = false;
+    canvas.parentElement.style.height = `${isRating ? Math.max(320, selected.length * 44) : 320}px`;
     try {
         if (myChart) { myChart.destroy(); myChart = null; }
         if (typeof window.Chart !== 'function') throw new Error('Chart.js is unavailable.');
         myChart = new window.Chart(canvas, {
             type: 'bar',
-            data: { labels, datasets: [{ label: 'Restaurants', data: counts, backgroundColor: '#237569', borderRadius: 4 }] },
+            data: { labels, datasets: [{ label: isRating ? 'Rating / 5' : 'Restaurants', data: counts, backgroundColor: '#237569', borderRadius: 4 }] },
             options: {
+                indexAxis: isRating ? 'y' : 'x',
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: reducedMotion.matches ? false : { duration: 450 },
-                plugins: { legend: { display: false }, title: { display: true, text: 'Restaurant count by cuisine' } },
-                scales: {
+                plugins: { legend: { display: false }, title: { display: true, text: isRating ? 'Rating by restaurant' : 'Restaurant count by cuisine' } },
+                scales: isRating ? {
+                    x: { beginAtZero: true, max: 5, title: { display: true, text: 'Rating / 5' } },
+                    y: { ticks: { autoSkip: false }, title: { display: true, text: 'Restaurant' } }
+                } : {
                     y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Number of restaurants' } },
                     x: { title: { display: true, text: 'Cuisine' } }
                 }
             }
         });
-        message.textContent = `${restaurants.length} restaurants across ${labels.length} cuisines. Hover or tap a bar for its count.`;
+        canvas.setAttribute('aria-label', `${metricTitle}; exact values appear in the table below`);
+        message.textContent = selected.length ? `${selected.length} restaurants shown. Hover or tap a bar for its ${isRating ? 'rating' : 'count'}.` : 'No restaurants match these filters. Reset filters to see all eight.';
     } catch (error) {
         if (myChart) { myChart.destroy(); myChart = null; }
         window.Chart?.getChart?.(canvas)?.destroy();
         canvas.hidden = true;
-        message.textContent = `${error.message} Exact cuisine totals are available in the table.`;
+        message.textContent = `${error.message} Exact values are available in the table.`;
     }
 }
 
 /** Filter records and update a reusable Leaflet map, with a text list when mapping fails. */
 function createMyMap() {
     if (!restaurants.length) return;
-    const cuisine = document.querySelector('#cuisine-filter').value;
-    const selected = restaurants.filter(restaurant => cuisine === 'all' || restaurant.cuisine === cuisine);
+    mapRequested = true;
+    const selected = getSelectedRestaurants();
     const list = document.querySelector('#location-list');
     list.replaceChildren();
-    selected.forEach(restaurant => list.append(createTextElement('li',
-        `${restaurant.name} · ${restaurant.cuisine} · ${restaurant.neighborhood} · ${restaurant.rating.toFixed(1)} / 5`)));
+    selected.forEach(restaurant => {
+        const entry = createTextElement('li', `${restaurant.name} · ${restaurant.cuisine} · ${restaurant.neighborhood} · ${restaurant.rating.toFixed(1)} / 5`);
+        const locateButton = createTextElement('button', 'Show on map');
+        locateButton.type = 'button';
+        locateButton.setAttribute('aria-label', `Show ${restaurant.name} on map`);
+        locateButton.addEventListener('click', () => {
+            const marker = markerById.get(restaurant.id);
+            if (marker && myMap) {
+                myMap.setView(marker.getLatLng(), 16, { animate: !reducedMotion.matches });
+                marker.openPopup();
+                mapContainer.scrollIntoView({ block: 'center', behavior: reducedMotion.matches ? 'instant' : 'smooth' });
+            }
+        });
+        entry.append(locateButton);
+        list.append(entry);
+    });
     const message = document.querySelector('#map-message');
     const mapContainer = document.querySelector('#restaurant-map');
     mapContainer.hidden = false;
@@ -124,13 +160,15 @@ function createMyMap() {
             markers = window.L.featureGroup().addTo(myMap);
         }
         markers.clearLayers();
+        markerById.clear();
         selected.forEach(restaurant => {
             const popup = document.createElement('div');
             popup.append(createTextElement('strong', restaurant.name),
                 createTextElement('p', `${restaurant.cuisine} · ${restaurant.rating.toFixed(1)} / 5`),
                 createTextElement('p', `${restaurant.neighborhood} · Sample location`));
-            window.L.marker(getRestaurantCoordinates(restaurant), { title: restaurant.name, alt: restaurant.name })
+            const marker = window.L.marker(getRestaurantCoordinates(restaurant), { title: restaurant.name, alt: restaurant.name })
                 .bindPopup(popup).addTo(markers);
+            markerById.set(restaurant.id, marker);
         });
         myMap.invalidateSize();
         if (selected.length) myMap.fitBounds(markers.getBounds(), { padding: [30, 30], maxZoom: 14, animate: !reducedMotion.matches });
@@ -139,6 +177,8 @@ function createMyMap() {
         if (myMap) myMap.remove();
         myMap = null;
         markers = null;
+        markerById.clear();
+        list.querySelectorAll('button').forEach(button => { button.hidden = true; });
         mapContainer.hidden = true;
         message.textContent = `${error.message} Use the filtered restaurant list below.`;
     }
@@ -158,8 +198,13 @@ function restoreVisibleCards() {
 function animateMyCards() {
     if (!restaurants.length) return;
     restoreVisibleCards();
-    createRestaurantCards(restaurants);
+    const selected = getSelectedRestaurants();
+    renderCards(selected);
     const message = document.querySelector('#animation-message');
+    if (!selected.length) {
+        message.textContent = 'No cards to animate. Reset filters to see all eight.';
+        return;
+    }
     if (reducedMotion.matches) {
         message.textContent = 'Reduced motion is enabled. All restaurant cards are shown without animation.';
         return;
@@ -169,10 +214,130 @@ function animateMyCards() {
         cardAnimation = window.gsap.fromTo('.restaurant-card',
             { opacity: 0, y: 24, scale: 0.96 },
             { opacity: 1, y: 0, scale: 1, duration: 0.55, stagger: 0.08, ease: 'back.out(1.2)', clearProps: 'opacity,transform',
-                onComplete: () => { message.textContent = `${restaurants.length} restaurant cards revealed.`; } });
-        message.textContent = `Animating ${restaurants.length} restaurant cards.`;
+                onComplete: () => { message.textContent = `${selected.length} restaurant cards revealed.`; } });
+        message.textContent = `Animating ${selected.length} restaurant cards.`;
     } catch (error) {
         restoreVisibleCards();
         message.textContent = `${error.message} All restaurant cards are shown without animation.`;
     }
+}
+
+
+/** Read the native filter controls and return the matching records in the chosen sort order. */
+function getSelectedRestaurants() {
+    return selectRestaurants(restaurants, {
+        query: document.querySelector('#restaurant-search').value,
+        cuisine: document.querySelector('#cuisine-filter').value,
+        price: document.querySelector('#price-filter').value,
+        minimumRating: Number(document.querySelector('#rating-filter').value),
+        sort: document.querySelector('#sort-order').value
+    });
+}
+
+/** Render safe cards and add native comparison toggles without hiding content for animation. */
+function renderCards(selected) {
+    createRestaurantCards(selected);
+    document.querySelectorAll('.restaurant-card').forEach((card, index) => {
+        const identifier = selected[index].id;
+        const button = createTextElement('button', shortlist.has(identifier) ? 'Remove from comparison' : 'Compare');
+        button.type = 'button';
+        button.dataset.restaurantId = identifier;
+        button.setAttribute('aria-pressed', String(shortlist.has(identifier)));
+        button.setAttribute('aria-label', `Compare ${selected[index].name}`);
+        card.append(button);
+    });
+}
+
+/** Synchronize cards, requested visualizations, result feedback, and download availability. */
+function updateExplorer() {
+    if (!restaurants.length) return;
+    const selected = getSelectedRestaurants();
+    restoreVisibleCards();
+    renderCards(selected);
+    const average = selected.length ? (selected.reduce((sum, restaurant) => sum + restaurant.rating, 0) / selected.length).toFixed(2) : null;
+    document.querySelector('#results-summary').textContent = selected.length
+        ? `${selected.length} of ${restaurants.length} restaurants · Average rating ${average} / 5`
+        : 'No restaurants match these filters. Reset filters to start again.';
+    document.querySelector('#download-results').disabled = selected.length === 0;
+    document.querySelector('#animation-message').textContent = selected.length ? `${selected.length} cards ready to animate.` : 'No cards match these filters.';
+    if (chartRequested) createMyChart();
+    if (mapRequested) createMyMap();
+    renderComparison();
+}
+
+/** Restore default filters, preserving the user's comparison choices. */
+function resetFilters() {
+    document.querySelector('#explore-form').reset();
+    updateExplorer();
+}
+
+/** Toggle a card's shortlist membership, limiting the comparison to three records. */
+function toggleComparison(event) {
+    const button = event.target.closest('button[data-restaurant-id]');
+    if (!button) return;
+    const identifier = Number(button.dataset.restaurantId);
+    if (shortlist.has(identifier)) shortlist.delete(identifier);
+    else if (shortlist.size < 3) shortlist.add(identifier);
+    else {
+        document.querySelector('#compare-message').textContent = 'You can compare up to three restaurants. Remove one choice before adding another.';
+        return;
+    }
+    button.setAttribute('aria-pressed', String(shortlist.has(identifier)));
+    button.textContent = shortlist.has(identifier) ? 'Remove from comparison' : 'Compare';
+    renderComparison();
+}
+
+/** Build an accessible comparison table using the original records, independent of filters. */
+function renderComparison() {
+    const selected = [...shortlist].map(identifier => restaurants.find(restaurant => restaurant.id === identifier)).filter(Boolean);
+    const container = document.querySelector('#comparison-table');
+    container.replaceChildren();
+    document.querySelector('#clear-shortlist').disabled = selected.length === 0;
+    document.querySelector('#compare-message').textContent = selected.length ? `${selected.length} of 3 comparison slots used.` : 'No restaurants selected.';
+    if (!selected.length) return;
+    const table = document.createElement('table');
+    table.append(createTextElement('caption', 'Shortlisted restaurant details'));
+    const head = document.createElement('thead');
+    const heading = document.createElement('tr');
+    const label = createTextElement('th', 'Detail');
+    label.scope = 'col';
+    heading.append(label);
+    selected.forEach(restaurant => {
+        const cell = createTextElement('th', restaurant.name);
+        cell.scope = 'col';
+        heading.append(cell);
+    });
+    head.append(heading);
+    const body = document.createElement('tbody');
+    for (const [title, field] of [['Cuisine', 'cuisine'], ['Rating / 5', 'rating'], ['Price', 'priceRange'], ['Neighborhood', 'neighborhood'], ['Hours', 'hours']]) {
+        const row = document.createElement('tr');
+        const header = createTextElement('th', title);
+        header.scope = 'row';
+        row.append(header);
+        selected.forEach(restaurant => row.append(createTextElement('td', restaurant[field])));
+        body.append(row);
+    }
+    table.append(head, body);
+    container.append(table);
+}
+
+/** Clear the temporary shortlist and refresh the visible comparison controls. */
+function clearShortlist() {
+    shortlist.clear();
+    updateExplorer();
+}
+
+/** Download matching source records as JSON and release the temporary browser URL. */
+function downloadResults() {
+    const selected = getSelectedRestaurants();
+    if (!selected.length) return;
+    const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'restaurant-results.json';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
