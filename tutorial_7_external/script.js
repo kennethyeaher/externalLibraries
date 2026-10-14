@@ -22,6 +22,7 @@ async function clickToLoad() {
         filter.replaceChildren(new Option('All cuisines', 'all'));
         countCuisines(restaurants).labels.forEach(cuisine => filter.add(new Option(cuisine, cuisine)));
         filter.disabled = false;
+        restoreVisibleCards();
         createRestaurantCards(restaurants);
         checkAllLibraryStatus();
         loadButton.textContent = 'Reload restaurant data';
@@ -36,18 +37,14 @@ async function clickToLoad() {
     }
 }
 
-/** Explain a demo that is still waiting to be created; used while the tutorial is assembled. */
-function showPendingDemo(event) {
-    event.currentTarget.closest('.example-card').querySelector('[role="status"]').textContent = 'This example is being prepared.';
-}
-
 // Bind native controls after the module and its deferred CDN scripts have loaded.
 loadButton.addEventListener('click', clickToLoad);
 checkAllLibraryStatus();
 document.querySelector('#chart-button').addEventListener('click', createMyChart);
 document.querySelector('#map-button').addEventListener('click', createMyMap);
 document.querySelector('#cuisine-filter').addEventListener('change', createMyMap);
-document.querySelector('#animation-button').addEventListener('click', showPendingDemo);
+document.querySelector('#animation-button').addEventListener('click', animateMyCards);
+reducedMotion.addEventListener('change', restoreVisibleCards);
 
 /** Render cuisine totals as a table and enhance them with a bar chart when Chart.js is available. */
 function createMyChart() {
@@ -144,5 +141,37 @@ function createMyMap() {
         markers = null;
         mapContainer.hidden = true;
         message.textContent = `${error.message} Use the filtered restaurant list below.`;
+    }
+}
+
+/** Cancel any running animation and restore visible cards when motion preferences change. */
+function restoreVisibleCards() {
+    cardAnimation?.kill();
+    cardAnimation = null;
+    document.querySelectorAll('.restaurant-card').forEach(card => {
+        card.style.removeProperty('opacity');
+        card.style.removeProperty('transform');
+    });
+}
+
+/** Animate all restaurant cards on demand, retaining static content on failure or reduced motion. */
+function animateMyCards() {
+    if (!restaurants.length) return;
+    restoreVisibleCards();
+    createRestaurantCards(restaurants);
+    const message = document.querySelector('#animation-message');
+    if (reducedMotion.matches) {
+        message.textContent = 'Reduced motion is enabled. All restaurant cards are shown without animation.';
+        return;
+    }
+    try {
+        if (typeof window.gsap?.fromTo !== 'function') throw new Error('GSAP is unavailable.');
+        cardAnimation = window.gsap.fromTo('.restaurant-card',
+            { opacity: 0, y: 24, scale: 0.96 },
+            { opacity: 1, y: 0, scale: 1, duration: 0.55, stagger: 0.08, ease: 'back.out(1.2)', clearProps: 'opacity,transform' });
+        message.textContent = `Animating ${restaurants.length} restaurant cards.`;
+    } catch (error) {
+        restoreVisibleCards();
+        message.textContent = `${error.message} All restaurant cards are shown without animation.`;
     }
 }
