@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/assets/banner.svg" alt="One menu. Three perspectives. A restaurant library lab using Chart.js, Leaflet, and GSAP." width="100%"></p>
 
-<p align="center"><strong>Eight restaurants. Three working examples. One shared dataset.</strong><br>Compare cuisines, filter sample locations, and replay a coordinated card entrance.</p>
+<p align="center"><strong>Eight restaurants. Three working examples. One shared dataset.</strong><br>Explore matching restaurants, compare three choices, and inspect one dataset through charts, a map, and animated cards.</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/JavaScript-ES_modules-F7DF1E?style=flat-square&amp;logo=javascript&amp;logoColor=182d47" alt="JavaScript ES modules">
@@ -15,7 +15,7 @@
 
 ## The project
 
-An INST630 external JavaScript library tutorial built from `tutorial_7_external`. The application loads the supplied restaurant file with `async` / `await`, validates the records, and uses the same data in three different views. Each library follows the same sequence:
+An INST630 external JavaScript library tutorial built from `tutorial_7_external`. The application loads the supplied restaurant file with `async` / `await`, validates the records, and uses the same data in three different views. Shared search, price, cuisine, and minimum rating controls keep the views synchronized. Each library follows the same sequence:
 
 **CDN → Check → Process → Initialize → Error handling**
 
@@ -29,13 +29,39 @@ The libraries enhance the page without becoming a single point of failure. A cha
 <p align="center"><img src="docs/assets/preview-mobile.png" alt="Mobile layout with the heading, example navigation, and data loading control stacked vertically." width="320"></p>
 </details>
 
+## Beyond the brief
+
+The extensions turn isolated demos into a small restaurant exploration workflow. They use the supplied data and existing libraries without adding a framework or backend.
+
+| Extension | What someone can do | What the code demonstrates |
+| --- | --- | --- |
+| **Shared exploration** | Search names, cuisines, and neighborhoods; combine cuisine, price, and rating filters | One pure selection function feeds all three views instead of maintaining conflicting copies |
+| **Rating comparison** | Switch from the required cuisine counts to restaurant ratings | Numeric scales bounded at five, exact values in a table, and horizontal bars for readable names |
+| **Three choice shortlist** | Compare cuisine, rating, price, neighborhood, and hours side by side | Selection state independent of filters, a clear capacity limit, native toggle buttons, and semantic table headers |
+| **Direct map inspection** | Open a specific restaurant's popup from its text entry | Matching records to markers by stable IDs rather than relying on their order or screen position |
+| **Filtered downloads** | Export only matching records as JSON | Source records preserved in the export, empty result protection, and cleanup of temporary browser URLs |
+| **Empty result recovery** | Reset filters after a combination finds no matches | Clear feedback and coordinated empty states across the chart, map, cards, and download control |
+
+<img src="docs/assets/explorer.png" alt="Shared exploration controls filtering eight records to the two College Park restaurants, with an average rating of 4.40 and a download action." width="100%">
+
+<img src="docs/assets/comparison.png" alt="Three shortlisted restaurants compared side by side by cuisine, rating, price, neighborhood, and hours." width="100%">
+
+<details>
+<summary><strong>See the additional rating chart and mobile explorer</strong></summary>
+<br>
+<img src="docs/assets/ratings.png" alt="Horizontal rating bars for the eight sample restaurants, sorted by rating on a zero to five scale, with an exact values table." width="100%">
+<p align="center"><img src="docs/assets/explorer-mobile.png" alt="Mobile shared search and filter form with controls stacked vertically." width="320"> <img src="docs/assets/ratings-mobile.png" alt="Mobile horizontal rating chart with readable restaurant labels and the exact values table." width="320"></p>
+</details>
+
+The shortlist is temporary page state. It survives filter changes and data refreshes in the current page, but a browser reload clears it. No selection is sent to a server or stored on disk. The JSON download contains only the matching original records, with no generated map coordinates. Prices and ratings are course sample values, not current restaurant information.
+
 ## The three examples
 
 | Library | Data preparation | Working interaction | Fallback |
 | --- | --- | --- | --- |
-| **Chart.js** | Count restaurant records by cuisine; sort labels alphabetically | Bar chart with hover and tap tooltips; repeated creation destroys the previous chart | Exact totals in a semantic table |
-| **Leaflet** | Filter records by cuisine; derive stable illustrative positions from the supplied neighborhoods | Markers with safe restaurant popups; cuisine filtering; zoom controls | Filtered text list of restaurant names, cuisines, neighborhoods, and ratings |
-| **GSAP** | Create one card for each of the eight records | Staggered opacity, position, and scale entrance; replay cancels the earlier animation | Static cards when GSAP fails or reduced motion is enabled |
+| **Chart.js** | Count matching records by cuisine, or use each matching restaurant’s rating | Required cuisine bar chart plus an optional horizontal rating chart; filter changes update the requested chart | Exact counts or ratings in a semantic table |
+| **Leaflet** | Use shared filter results; derive stable illustrative positions from the supplied neighborhoods | Markers with safe popups, shared filtering, zoom controls, and direct list actions | Filtered text list of restaurant names, cuisines, neighborhoods, and ratings |
+| **GSAP** | Create a card for each matching record, with all eight shown by default | Staggered opacity, position, and scale entrance; replay cancels the earlier animation | Static cards when GSAP fails or reduced motion is enabled |
 
 <details open>
 <summary><strong>Cuisine chart</strong></summary>
@@ -55,7 +81,7 @@ The libraries enhance the page without becoming a single point of failure. A cha
 <img src="docs/assets/cards.png" alt="Eight visible restaurant cards with cuisine, price, rating, neighborhood, and hours." width="100%">
 </details>
 
-**These are sample restaurants, not a restaurant directory.** The source file contains no street addresses or coordinates. Map positions are deterministic demonstrations based on the starter's neighborhood centers, with small offsets to separate records. They are labeled as illustrative on the page and in popups. Nearby markers can overlap at the overview zoom; filter by cuisine or zoom in to inspect them. The source JSON is unchanged.
+**These are sample restaurants, not a restaurant directory.** The source file contains no street addresses or coordinates. Map positions are deterministic demonstrations based on the starter's neighborhood centers, with small offsets to separate records. They are labeled as illustrative on the page and in popups. Nearby markers can overlap at the overview zoom; filter, zoom in, or use a restaurant’s Show on map button to open its popup directly. The source JSON is unchanged.
 
 The cuisine chart intentionally shows equal bars: each of the eight supplied cuisines appears once. The counting function also handles repeated categories, which is checked using a separate test fixture rather than altering the course data.
 
@@ -81,7 +107,7 @@ The application needs a static HTTP server because it fetches JSON and imports J
 python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Open **[localhost:8000/tutorial_7_external/](http://localhost:8000/tutorial_7_external/)**. Select **Load restaurant data**, then try the chart, map, and animation controls. Filter the map to Japanese and select the Sakura Sushi marker. Change back to All cuisines, then replay the cards.
+Open **[localhost:8000/tutorial_7_external/](http://localhost:8000/tutorial_7_external/)**. Select **Load restaurant data**, then try the chart, map, and animation controls. Choose Japanese in the shared cuisine filter; every requested view should show Sakura Sushi. Use its Show on map button, then select Reset filters to restore all eight records. Switch the chart to Restaurant ratings, sort by Highest rating, and compare three cards. Download a filtered result and inspect the JSON.
 
 No build step or application package installation is required. The three pinned libraries load from CDNs. Leaflet's stylesheet and marker images also load externally; OpenStreetMap supplies the map tiles. An internet connection is needed for those enhancements. Local restaurant data and text alternatives remain usable if the external scripts fail.
 
@@ -104,11 +130,11 @@ BROWSER_CHANNEL=chrome npm test
 
 | Check | Local result | Scope |
 | --- | --- | --- |
-| JavaScript syntax and data checks | PASS | Repeated cuisines, total count, empty input, duplicate IDs, missing fields, invalid ratings, stable sample positions |
-| Browser regression suite | PASS | Ten scenarios in installed Chrome, including all three demos, repeat actions, popups, filtering, failed requests, invalid responses, timeout, blocked scripts and tiles, initialization errors, and literal text rendering |
+| JavaScript syntax and data checks | PASS | Repeated cuisines, total count, empty input, duplicate IDs, missing fields, invalid ratings, stable sample positions, combined filter criteria, sorting, and preservation of the original array |
+| Browser regression suite | PASS | Fifteen scenarios in installed Chrome, including all three demos, repeat actions, popups, filtering, failed requests, invalid responses, timeout, blocked scripts and tiles, initialization errors, literal text rendering, shared filters, empty results, comparison limits, exact exports, and direct map actions |
 | Reduced motion | PASS in automated checks | Static cards and disabled Chart.js animation; this does not establish full motion accessibility |
 | Layout and keyboard | PASS in automated checks | No horizontal page overflow at 320, 390, and 1440 pixels; keyboard activation of the load button |
-| Screenshot inspection | PASS for captured states | Desktop, mobile, chart, map, and card screenshots are actual browser captures |
+| Screenshot inspection | PASS for captured states | Desktop and mobile explorer, comparison, chart, map, and card screenshots are actual browser captures |
 | Dependency audit and whitespace | PASS | No known npm vulnerabilities reported; `git diff --check` passed |
 | Safari, Firefox, VoiceOver, and complete accessibility review | UNVERIFIED | Not covered by the local checks |
 | GitHub Actions | Configured | Hosted execution must be checked after publication |
@@ -123,7 +149,7 @@ The suite starts and stops its own server on port 8768. Real CDN availability re
 | **Leaflet** | Verified locations and spatial relationships affect a decision | Interactive geographic display and filtering | Coordinates, tile availability, attribution, and map accessibility require extra work |
 | **GSAP** | A coordinated transition explains a state change that CSS cannot easily support | Timing, stagger, easing, and animation control | Motion must stay optional; the library should solve a real interaction need |
 
-**For this dataset, Chart.js is the strongest starting point.** Cuisine and rating already exist, while a reliable Leaflet implementation would first need verified coordinates. A more useful chart extension would compare average ratings by cuisine or restaurant. With only one record per cuisine, category averages would still represent individual sample restaurants, not a broader market trend.
+**For this dataset, Chart.js is the strongest starting point.** Cuisine and rating already exist, while a reliable Leaflet implementation would first need verified coordinates. The added rating chart compares individual restaurants on the same zero to five scale. The result summary also reports the average of matching records. With only one record per cuisine, category averages would still represent individual sample restaurants, not a broader market trend.
 
 The final Project 2 choice should depend on Assignment 2's actual dataset and user task. This tutorial does not modify that separate assignment. Before choosing, identify the question the library answers, check the required data, build a small prototype, and test a failed library load. Use CSS for simple transitions before adding GSAP.
 
@@ -133,7 +159,7 @@ The three examples use the same headings, controls, and feedback structure so at
 
 Two patterns from *Designing Interfaces: Patterns for Effective Interaction Design*, 3rd edition, by Jenifer Tidwell, Charles Brewer, and Aynne Valencia support these choices:
 
-- **Alternative Views**, supplied PDF page 180: the same records can support different tasks through substantially different views. Here, counting, locating, and inspecting details use one shared dataset.
+- **Alternative Views**, supplied PDF page 180: the same records can support different tasks through substantially different views. Here, counting, locating, inspecting details, and comparing choices use one shared dataset and one set of filter criteria.
 - **Animated Transition**, supplied PDF page 334: motion can communicate an action or change. The cards use a brief coordinated entrance after an explicit request, with a static alternative for reduced motion.
 
 These are PDF page positions, not printed page numbers. The patterns support the interaction decisions; they do not establish which JavaScript library should be used.
@@ -144,9 +170,9 @@ These are PDF page positions, not printed page numbers. The patterns support the
 externalLibraries/
 ├── tutorial_7_external/
 │   ├── index.html             # pinned CDN includes and tutorial interface
-│   ├── script.js              # shared state and three library examples
+│   ├── script.js              # shared exploration, comparison, and library views
 │   ├── tutorial-support.js    # loading, status checks, and safe cards
-│   ├── data.js                # validation, cuisine counts, sample positions
+│   ├── data.js                # validation, filtering, counts, sample positions
 │   ├── restaurants.json       # unchanged course dataset
 │   ├── instructions.md        # supplied assignment reference
 │   └── answer/script.js       # supplied reference, not an application import
