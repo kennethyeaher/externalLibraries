@@ -7,9 +7,11 @@
   <img src="https://img.shields.io/badge/Chart.js-3.9.1-237569?style=flat-square" alt="Chart.js 3.9.1">
   <img src="https://img.shields.io/badge/Leaflet-1.9.4-237569?style=flat-square" alt="Leaflet 1.9.4">
   <img src="https://img.shields.io/badge/GSAP-3.12.2-237569?style=flat-square" alt="GSAP 3.12.2">
+  <a href="https://kennethyeaher.github.io/externalLibraries/tutorial_7_external/"><img src="https://img.shields.io/badge/demo-GitHub_Pages-244f9d?style=flat-square" alt="GitHub Pages demo"></a>
+  <a href="https://github.com/kennethyeaher/externalLibraries/actions/workflows/browser-checks.yml"><img src="https://img.shields.io/github/actions/workflow/status/kennethyeaher/externalLibraries/browser-checks.yml?branch=main&amp;style=flat-square&amp;label=browser%20checks" alt="Current browser checks status"></a>
 </p>
 
-<p align="center"><a href="#the-three-examples">Explore the examples</a> · <a href="#class-requirements">Class requirements</a> · <a href="#run-locally">Run locally</a> · <a href="#verification">Verification</a></p>
+<p align="center"><a href="https://kennethyeaher.github.io/externalLibraries/tutorial_7_external/"><strong>Try the live lab ↗</strong></a> · <a href="#the-three-examples">Explore the examples</a> · <a href="#class-requirements">Class requirements</a> · <a href="#run-locally">Run locally</a> · <a href="#verification">Verification</a></p>
 
 ---
 
@@ -99,6 +101,10 @@ The cuisine chart intentionally shows equal bars: each of the eight supplied cui
 
 The downloaded starter labels itself “Tutorial 8” in several places. This repository uses the supplied folder name and the assignment's Tutorial 7 label. The original scaffold, support file, and provided answer are preserved in the first commit. The included `answer/script.js` is course reference material and is not loaded by the application.
 
+## Live demo
+
+**[Open the restaurant library lab](https://kennethyeaher.github.io/externalLibraries/tutorial_7_external/)**. The repository About section links to the same application.
+
 ## Run locally
 
 The application needs a static HTTP server because it fetches JSON and imports JavaScript modules. Opening the HTML with `file://` will not provide the same behavior.
@@ -137,7 +143,7 @@ BROWSER_CHANNEL=chrome npm test
 | Screenshot inspection | PASS for captured states | Desktop and mobile explorer, comparison, chart, map, and card screenshots are actual browser captures |
 | Dependency audit and whitespace | PASS | No known npm vulnerabilities reported; `git diff --check` passed |
 | Safari, Firefox, VoiceOver, and complete accessibility review | UNVERIFIED | Not covered by the local checks |
-| GitHub Actions | Configured | Hosted execution must be checked after publication |
+| GitHub Actions | Automated on pushes and pull requests | The status badge links to the current hosted Chromium result |
 
 The suite starts and stops its own server on port 8768. Real CDN availability remains outside this project's control. Expected blocked requests are tested separately from normal operation. A successful automated check is evidence for that scenario, not proof of every browser or assistive technology.
 
