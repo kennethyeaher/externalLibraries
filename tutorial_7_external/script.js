@@ -44,4 +44,57 @@ function showPendingDemo(event) {
 // Bind native controls after the module and its deferred CDN scripts have loaded.
 loadButton.addEventListener('click', clickToLoad);
 checkAllLibraryStatus();
-document.querySelectorAll('.demo-button').forEach(button => button.addEventListener('click', showPendingDemo));
+document.querySelector('#chart-button').addEventListener('click', createMyChart);
+document.querySelector('#map-button').addEventListener('click', showPendingDemo);
+document.querySelector('#animation-button').addEventListener('click', showPendingDemo);
+
+/** Render cuisine totals as a table and enhance them with a bar chart when Chart.js is available. */
+function createMyChart() {
+    if (!restaurants.length) return;
+    const { labels, counts } = countCuisines(restaurants);
+    const table = document.createElement('table');
+    table.append(createTextElement('caption', 'Restaurants by cuisine'));
+    const header = document.createElement('tr');
+    ['Cuisine', 'Restaurants'].forEach(text => {
+        const cell = createTextElement('th', text);
+        cell.scope = 'col';
+        header.append(cell);
+    });
+    const head = document.createElement('thead');
+    head.append(header);
+    const body = document.createElement('tbody');
+    labels.forEach((cuisine, index) => {
+        const row = document.createElement('tr');
+        row.append(createTextElement('td', cuisine), createTextElement('td', counts[index]));
+        body.append(row);
+    });
+    table.append(head, body);
+    document.querySelector('#chart-table').replaceChildren(table);
+    const message = document.querySelector('#chart-message');
+    const canvas = document.querySelector('#restaurant-chart');
+    canvas.hidden = false;
+    try {
+        if (myChart) { myChart.destroy(); myChart = null; }
+        if (typeof window.Chart !== 'function') throw new Error('Chart.js is unavailable.');
+        myChart = new window.Chart(canvas, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Restaurants', data: counts, backgroundColor: '#237569', borderRadius: 4 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: reducedMotion.matches ? false : { duration: 450 },
+                plugins: { legend: { display: false }, title: { display: true, text: 'Restaurant count by cuisine' } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Number of restaurants' } },
+                    x: { title: { display: true, text: 'Cuisine' } }
+                }
+            }
+        });
+        message.textContent = `${restaurants.length} restaurants across ${labels.length} cuisines. Hover or tap a bar for its count.`;
+    } catch (error) {
+        if (myChart) { myChart.destroy(); myChart = null; }
+        window.Chart?.getChart?.(canvas)?.destroy();
+        canvas.hidden = true;
+        message.textContent = `${error.message} Exact cuisine totals are available in the table.`;
+    }
+}
