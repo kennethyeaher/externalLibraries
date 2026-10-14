@@ -39,3 +39,20 @@ export function getRestaurantCoordinates(restaurant) {
     const offset = (restaurant.id % 5 - 2) * 0.001;
     return [base[0] + offset, base[1] - offset];
 }
+
+/** Filter and sort records using explicit search, cuisine, price, and minimum rating criteria. */
+export function selectRestaurants(records, criteria) {
+    const query = criteria.query.trim().toLocaleLowerCase();
+    const selected = records.filter(restaurant => {
+        const searchable = `${restaurant.name} ${restaurant.cuisine} ${restaurant.neighborhood}`.toLocaleLowerCase();
+        return searchable.includes(query)
+            && (criteria.cuisine === 'all' || restaurant.cuisine === criteria.cuisine)
+            && (criteria.price === 'all' || restaurant.priceRange === criteria.price)
+            && restaurant.rating >= criteria.minimumRating;
+    });
+    return selected.sort((first, second) => {
+        if (criteria.sort === 'rating') return second.rating - first.rating || first.name.localeCompare(second.name);
+        if (criteria.sort === 'price') return first.priceRange.length - second.priceRange.length || first.name.localeCompare(second.name);
+        return first.name.localeCompare(second.name);
+    });
+}
