@@ -168,7 +168,8 @@ function animateMyCards() {
         if (typeof window.gsap?.fromTo !== 'function') throw new Error('GSAP is unavailable.');
         cardAnimation = window.gsap.fromTo('.restaurant-card',
             { opacity: 0, y: 24, scale: 0.96 },
-            { opacity: 1, y: 0, scale: 1, duration: 0.55, stagger: 0.08, ease: 'back.out(1.2)', clearProps: 'opacity,transform' });
+            { opacity: 1, y: 0, scale: 1, duration: 0.55, stagger: 0.08, ease: 'back.out(1.2)', clearProps: 'opacity,transform',
+                onComplete: () => { message.textContent = `${restaurants.length} restaurant cards revealed.`; } });
         message.textContent = `Animating ${restaurants.length} restaurant cards.`;
     } catch (error) {
         restoreVisibleCards();

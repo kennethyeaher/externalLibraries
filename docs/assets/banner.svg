@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title description">
+<title id="title">External Libraries: One menu. Three perspectives.</title>
+<desc id="description">A restaurant dataset shown as a chart, a map, and a sequence of cards.</desc>
+<rect width="1200" height="420" rx="24" fill="#182d47"/>
+<g font-family="Arial,sans-serif" fill="#b6dbcf"><text x="64" y="63" font-size="15" letter-spacing="3">INST630 / JAVASCRIPT LIBRARY LAB</text></g>
+<g font-family="Georgia,serif" fill="white" font-size="58"><text x="64" y="149">One menu.</text><text x="64" y="215">Three perspectives.</text></g>
+<text x="64" y="270" font-family="Arial,sans-serif" fill="#d5e1f2" font-size="19">Chart.js · Leaflet · GSAP</text>
+<path d="M64 312H528" stroke="#46586c"/>
+<text x="64" y="352" font-family="Arial,sans-serif" fill="#d5e1f2" font-size="14">CDN → Check → Process → Initialize → Error handling</text>
+<g transform="translate(620 65)">
+<rect width="154" height="260" rx="12" fill="#f4f7fc"/>
+<text x="20" y="38" font-family="Arial,sans-serif" font-size="13" fill="#182d47">COMPARE</text>
+<path d="M23 195H134M23 65V195" fill="none" stroke="#cad5e2"/>
+<g fill="#237569"><rect x="35" y="114" width="22" height="81" rx="3"/><rect x="69" y="114" width="22" height="81" rx="3"/><rect x="103" y="114" width="22" height="81" rx="3"/></g>
+<text x="20" y="236" font-family="Arial,sans-serif" font-size="13" fill="#46586c">Cuisine counts</text>
+</g>
+<g transform="translate(790 65)">
+<rect width="154" height="260" rx="12" fill="#f4f7fc"/>
+<text x="20" y="38" font-family="Arial,sans-serif" font-size="13" fill="#182d47">LOCATE</text>
+<path d="M18 87L137 182M27 184L126 67M18 141L137 123" stroke="#cad5e2" stroke-width="9"/>
+<g fill="#244f9d"><circle cx="53" cy="100" r="9"/><circle cx="109" cy="145" r="9"/><circle cx="54" cy="174" r="9"/></g>
+<text x="20" y="236" font-family="Arial,sans-serif" font-size="13" fill="#46586c">Sample locations</text>
+</g>
+<g transform="translate(960 65)">
+<rect width="154" height="260" rx="12" fill="#f4f7fc"/>
+<text x="20" y="38" font-family="Arial,sans-serif" font-size="13" fill="#182d47">REVEAL</text>
+<g fill="#237569"><rect x="24" y="75" width="106" height="29" rx="4" opacity="0.3"/><rect x="24" y="118" width="106" height="29" rx="4" opacity="0.6"/><rect x="24" y="161" width="106" height="29" rx="4"/></g>
+<text x="20" y="236" font-family="Arial,sans-serif" font-size="13" fill="#46586c">Restaurant cards</text>
+</g></svg>
