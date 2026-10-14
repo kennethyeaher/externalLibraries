@@ -45,7 +45,8 @@ function showPendingDemo(event) {
 loadButton.addEventListener('click', clickToLoad);
 checkAllLibraryStatus();
 document.querySelector('#chart-button').addEventListener('click', createMyChart);
-document.querySelector('#map-button').addEventListener('click', showPendingDemo);
+document.querySelector('#map-button').addEventListener('click', createMyMap);
+document.querySelector('#cuisine-filter').addEventListener('change', createMyMap);
 document.querySelector('#animation-button').addEventListener('click', showPendingDemo);
 
 /** Render cuisine totals as a table and enhance them with a bar chart when Chart.js is available. */
@@ -96,5 +97,52 @@ function createMyChart() {
         window.Chart?.getChart?.(canvas)?.destroy();
         canvas.hidden = true;
         message.textContent = `${error.message} Exact cuisine totals are available in the table.`;
+    }
+}
+
+/** Filter records and update a reusable Leaflet map, with a text list when mapping fails. */
+function createMyMap() {
+    if (!restaurants.length) return;
+    const cuisine = document.querySelector('#cuisine-filter').value;
+    const selected = restaurants.filter(restaurant => cuisine === 'all' || restaurant.cuisine === cuisine);
+    const list = document.querySelector('#location-list');
+    list.replaceChildren();
+    selected.forEach(restaurant => list.append(createTextElement('li',
+        `${restaurant.name} · ${restaurant.cuisine} · ${restaurant.neighborhood} · ${restaurant.rating.toFixed(1)} / 5`)));
+    const message = document.querySelector('#map-message');
+    const mapContainer = document.querySelector('#restaurant-map');
+    mapContainer.hidden = false;
+    try {
+        if (typeof window.L?.map !== 'function') throw new Error('Leaflet is unavailable.');
+        if (!myMap) {
+            myMap = window.L.map('restaurant-map', { scrollWheelZoom: false }).setView([38.9897, -76.9378], 12);
+            const tiles = window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            });
+            tiles.on('tileerror', () => {
+                message.textContent = 'Map tiles could not load. Sample markers and the restaurant list are still available.';
+            });
+            tiles.addTo(myMap);
+            markers = window.L.featureGroup().addTo(myMap);
+        }
+        markers.clearLayers();
+        selected.forEach(restaurant => {
+            const popup = document.createElement('div');
+            popup.append(createTextElement('strong', restaurant.name),
+                createTextElement('p', `${restaurant.cuisine} · ${restaurant.rating.toFixed(1)} / 5`),
+                createTextElement('p', `${restaurant.neighborhood} · Sample location`));
+            window.L.marker(getRestaurantCoordinates(restaurant), { title: restaurant.name, alt: restaurant.name })
+                .bindPopup(popup).addTo(markers);
+        });
+        myMap.invalidateSize();
+        if (selected.length) myMap.fitBounds(markers.getBounds(), { padding: [30, 30], maxZoom: 14, animate: !reducedMotion.matches });
+        message.textContent = `${selected.length} sample ${selected.length === 1 ? 'location' : 'locations'} shown. Select a marker for restaurant details.`;
+    } catch (error) {
+        if (myMap) myMap.remove();
+        myMap = null;
+        markers = null;
+        mapContainer.hidden = true;
+        message.textContent = `${error.message} Use the filtered restaurant list below.`;
     }
 }
