@@ -38,8 +38,9 @@ The extensions turn isolated demos into a small restaurant exploration workflow.
 | Extension | What someone can do | What the code demonstrates |
 | --- | --- | --- |
 | **Shared exploration** | Search names, cuisines, and neighborhoods; combine cuisine, price, and rating filters | One pure selection function feeds all three views instead of maintaining conflicting copies |
-| **Rating comparison** | Switch from the required cuisine counts to restaurant ratings | Numeric scales bounded at five, exact values in a table, and horizontal bars for readable names |
+| **Chart analysis** | Switch between cuisine counts, restaurant ratings, neighborhood cuisine mix, and price tiers versus ratings | Stacked datasets, scatter coordinates, precise axes, custom plugin hooks, and exact values in tables |
 | **Three choice shortlist** | Compare cuisine, rating, price, neighborhood, and hours side by side | Selection state independent of filters, a clear capacity limit, native toggle buttons, and semantic table headers |
+| **Chart exploration and image export** | Select a chart bar or point to narrow all views, or download the current chart as a PNG | Event handling, keyboard equivalent table actions, mean reference lines, canvas export, and a white image background |
 | **Direct map inspection** | Open a specific restaurant's popup from its text entry | Matching records to markers by stable IDs rather than relying on their order or screen position |
 | **Filtered downloads** | Export only matching records as JSON | Source records preserved in the export, empty result protection, and cleanup of temporary browser URLs |
 | **Empty result recovery** | Reset filters after a combination finds no matches | Clear feedback and coordinated empty states across the chart, map, cards, and download control |
@@ -51,7 +52,7 @@ The extensions turn isolated demos into a small restaurant exploration workflow.
 <details>
 <summary><strong>See the additional rating chart and mobile explorer</strong></summary>
 <br>
-<img src="docs/assets/ratings.png" alt="Horizontal rating bars for the eight sample restaurants, sorted by rating on a zero to five scale, with an exact values table." width="100%">
+<img src="docs/assets/ratings.png" alt="Horizontal rating bars for the eight sample restaurants, on a zero to five scale with a matching-sample mean reference, with an exact values table." width="100%">
 <p align="center"><img src="docs/assets/explorer-mobile.png" alt="Mobile shared search and filter form with controls stacked vertically." width="320"> <img src="docs/assets/ratings-mobile.png" alt="Mobile horizontal rating chart with readable restaurant labels and the exact values table." width="320"></p>
 </details>
 
@@ -61,9 +62,36 @@ The shortlist is temporary page state. It survives filter changes and data refre
 
 | Library | Data preparation | Working interaction | Fallback |
 | --- | --- | --- | --- |
-| **Chart.js** | Count matching records by cuisine, or use each matching restaurant’s rating | Required cuisine bar chart plus an optional horizontal rating chart; filter changes update the requested chart | Exact counts or ratings in a semantic table |
+| **Chart.js** | Aggregate cuisine and neighborhood counts, or plot the original ratings and ordered price tiers | Required cuisine bar chart plus horizontal ratings, stacked neighborhood counts, and a price-tier scatter plot; chart selections filter every view | Exact counts or ratings in a semantic table |
 | **Leaflet** | Use shared filter results; derive stable illustrative positions from the supplied neighborhoods | Markers with safe popups, shared filtering, zoom controls, and direct list actions | Filtered text list of restaurant names, cuisines, neighborhoods, and ratings |
 | **GSAP** | Create a card for each matching record, with all eight shown by default | Staggered opacity, position, and scale entrance; replay cancels the earlier animation | Static cards when GSAP fails or reduced motion is enabled |
+
+### Chart.js analysis
+
+The default remains the required **bar chart counting restaurants by cuisine**. Three additional views answer different questions using the same sample data:
+
+| View | Question | Integration details |
+| --- | --- | --- |
+| Cuisine counts | How many matching restaurants serve each cuisine? | `type: 'bar'`, categorical labels, and integer counts |
+| Restaurant ratings | How do individual sample ratings compare? | Horizontal bars, a zero to five rating scale, and a dashed matching-sample mean |
+| Cuisine mix by neighborhood | Which cuisines appear in each sample neighborhood? | One dataset per cuisine, stacked counts, and interactive legend visibility |
+| Price tier vs. rating | Where do the sample restaurants fall across price tiers and ratings? | Scatter points colored by neighborhood, named tooltips, categorical price labels, and a mean-rating reference |
+
+Select a bar or point to narrow the shared results. Each exact-value table also includes native **Explore** buttons, so this workflow does not depend on pointer interaction or a working canvas. A stacked segment selects both its neighborhood and cuisine; a neighborhood table action selects the neighborhood. After exploration, focus moves to the chart feedback. **Reset filters** restores the complete dataset.
+
+The legend changes visible chart series without changing the underlying filters or exact-value table. The reference line always represents the matching sample records. The complete sample averages **4.36 / 5**; filtering recalculates the mean. Hiding a legend series does not redefine that average.
+
+**Download chart as PNG** exports the completed current chart with a white background. It preserves current filter and legend visibility. The action stays disabled until a chart exists, for empty results, or when Chart.js fails. JSON result downloads remain a separate way to inspect the original records.
+
+Price symbols are ordered tiers, not measured dollar amounts. The scatter plot preserves exact values without jitter or a trend line. Overlapping points can be inspected through the named tooltips and exact-value table. Eight course sample records do not establish a price-quality relationship or a general neighborhood trend.
+
+<details>
+<summary><strong>See the advanced Chart.js views</strong></summary>
+<br>
+<img src="docs/assets/neighborhood-chart.png" alt="Stacked cuisine counts for four sample neighborhoods, with a cuisine legend and an exact count table." width="100%">
+<img src="docs/assets/price-chart.png" alt="Scatter plot of ordered price tiers and exact restaurant ratings, with neighborhood colors and a matching-sample mean reference." width="100%">
+<p align="center"><img src="docs/assets/neighborhood-chart-mobile.png" alt="Mobile stacked neighborhood chart with its complete legend and a horizontally scrollable exact-value table." width="320"> <img src="docs/assets/price-chart-mobile.png" alt="Mobile price-tier scatter plot and restaurant values table." width="320"></p>
+</details>
 
 <details open>
 <summary><strong>Cuisine chart</strong></summary>
@@ -136,8 +164,8 @@ BROWSER_CHANNEL=chrome npm test
 
 | Check | Local result | Scope |
 | --- | --- | --- |
-| JavaScript syntax and data checks | PASS | Repeated cuisines, total count, empty input, duplicate IDs, missing fields, invalid ratings, stable sample positions, combined filter criteria, sorting, and preservation of the original array |
-| Browser regression suite | PASS | Fifteen scenarios in installed Chrome, including all three demos, repeat actions, popups, filtering, failed requests, invalid responses, timeout, blocked scripts and tiles, initialization errors, literal text rendering, shared filters, empty results, comparison limits, exact exports, and direct map actions |
+| JavaScript syntax and data checks | PASS | Repeated cuisines, total count, empty input, duplicate IDs, missing fields, invalid ratings, stable sample positions, combined filter criteria, sorting, and preservation of the original array, stacked group totals, scatter coordinates, chart targets, and matching-sample means |
+| Browser regression suite | PASS | Twenty scenarios in installed Chrome, including all three demos, repeat actions, popups, filtering, failed requests, invalid responses, timeout, blocked scripts and tiles, initialization errors, literal text rendering, shared filters, empty results, comparison limits, exact exports, direct map actions, stacked totals, legend visibility, canvas exploration, keyboard equivalents, price-tier axes, and PNG image output |
 | Reduced motion | PASS in automated checks | Static cards and disabled Chart.js animation; this does not establish full motion accessibility |
 | Layout and keyboard | PASS in automated checks | No horizontal page overflow at 320, 390, and 1440 pixels; keyboard activation of the load button |
 | Screenshot inspection | PASS for captured states | Desktop and mobile explorer, comparison, chart, map, and card screenshots are actual browser captures |
@@ -155,7 +183,7 @@ The suite starts and stops its own server on port 8768. Real CDN availability re
 | **Leaflet** | Verified locations and spatial relationships affect a decision | Interactive geographic display and filtering | Coordinates, tile availability, attribution, and map accessibility require extra work |
 | **GSAP** | A coordinated transition explains a state change that CSS cannot easily support | Timing, stagger, easing, and animation control | Motion must stay optional; the library should solve a real interaction need |
 
-**For this dataset, Chart.js is the strongest starting point.** Cuisine and rating already exist, while a reliable Leaflet implementation would first need verified coordinates. The added rating chart compares individual restaurants on the same zero to five scale. The result summary also reports the average of matching records. With only one record per cuisine, category averages would still represent individual sample restaurants, not a broader market trend.
+**For this dataset, Chart.js is the strongest starting point.** Cuisine and rating already exist, while a reliable Leaflet implementation would first need verified coordinates. The added rating chart compares individual restaurants on the same zero to five scale. Neighborhood stacks count sample records, and the scatter plot compares ordered price tiers with ratings without fitting a trend. The result summary also reports the average of matching records. With only one record per cuisine, category averages would still represent individual sample restaurants, not a broader market trend.
 
 The final Project 2 choice should depend on Assignment 2's actual dataset and user task. This tutorial does not modify that separate assignment. Before choosing, identify the question the library answers, check the required data, build a small prototype, and test a failed library load. Use CSS for simple transitions before adding GSAP.
 
@@ -179,6 +207,7 @@ externalLibraries/
 │   ├── script.js              # shared exploration, comparison, and library views
 │   ├── tutorial-support.js    # loading, status checks, and safe cards
 │   ├── data.js                # validation, filtering, counts, sample positions
+│   ├── chart-data.js          # chart datasets, tables, and exploration targets
 │   ├── restaurants.json       # unchanged course dataset
 │   ├── instructions.md        # supplied assignment reference
 │   └── answer/script.js       # supplied reference, not an application import
@@ -190,7 +219,7 @@ externalLibraries/
 
 ## Sources
 
-The restaurant data, original scaffold, instructions, and provided answer come from the course's `tutorial_7_external` support files. The implementation follows the official [Chart.js getting started guide](https://www.chartjs.org/docs/latest/getting-started/), [Leaflet quick start](https://leafletjs.com/examples/quick-start/), and [GSAP getting started guide](https://gsap.com/resources/get-started/). The assignment also references [MDN's third party APIs overview](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Client-side_APIs/Third_party_APIs).
+The restaurant data, original scaffold, instructions, and provided answer come from the course's `tutorial_7_external` support files. The implementation follows the official [Chart.js getting started guide](https://www.chartjs.org/docs/latest/getting-started/), [Leaflet quick start](https://leafletjs.com/examples/quick-start/), [Chart.js plugin documentation](https://www.chartjs.org/docs/latest/developers/plugins.html), [Chart.js API reference](https://www.chartjs.org/docs/latest/developers/api.html), and [GSAP getting started guide](https://gsap.com/resources/get-started/). The assignment also references [MDN's third party APIs overview](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Client-side_APIs/Third_party_APIs).
 
 Library versions match the provided starter's examples. Chart.js and Leaflet use permissive open source licenses; GSAP has its own [standard license](https://gsap.com/community/standard-license/). Course materials and third party libraries retain their respective rights. Map attribution stays visible in the interface.
 
