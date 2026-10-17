@@ -5,7 +5,7 @@
   "description": "Three restaurant data views using Chart.js, Leaflet, and GSAP",
   "scripts": {
     "start": "python3 -m http.server 8000 --bind 127.0.0.1",
-    "check": "node --check tutorial_7_external/script.js && node --check tutorial_7_external/tutorial-support.js && node --check tutorial_7_external/data.js && node --test tests/data.test.cjs",
+    "check": "node --check tutorial_7_external/script.js && node --check tutorial_7_external/tutorial-support.js && node --check tutorial_7_external/data.js && node --check tutorial_7_external/chart-data.js && node --test tests/data.test.cjs",
     "test": "node --test tests/browser.test.cjs"
   },
   "devDependencies": {

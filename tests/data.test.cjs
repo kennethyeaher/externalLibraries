@@ -30,3 +30,31 @@ test('shared restaurant selection handles realistic exploration criteria', async
     assert.equal(selectRestaurants(records, { ...defaults, sort: 'price' })[0].priceRange, '$');
     assert.deepEqual(records.map(restaurant => restaurant.id), sourceOrder);
 });
+
+/** Check chart totals, grouped records, price coordinates, mean ratings, and click targets independently. */
+test('advanced chart models preserve source values and group totals', async () => {
+    const { buildChartModel, getChartTarget } = await import('../tutorial_7_external/chart-data.js');
+    const cuisine = buildChartModel(records, 'cuisine');
+    assert.equal(cuisine.type, 'bar');
+    assert.equal(cuisine.datasets[0].data.reduce((sum, count) => sum + count, 0), 8);
+    const grouped = buildChartModel(records, 'neighborhood');
+    assert.deepEqual(grouped.rows.map(row => row.at(-1)), [2, 2, 2, 2]);
+    assert.equal(grouped.datasets.flatMap(dataset => dataset.data).reduce((sum, count) => sum + count, 0), 8);
+    const doubled = buildChartModel([records[0], { ...records[0], id: 99 }], 'neighborhood');
+    assert.deepEqual(doubled.datasets[0].data, [2]);
+    const rating = buildChartModel(records, 'rating');
+    assert.ok(Math.abs(rating.mean - 4.3625) < 0.00001);
+    assert.deepEqual(rating.datasets[0].data, records.map(record => record.rating));
+    const scatter = buildChartModel(records, 'price');
+    const points = scatter.datasets.flatMap(dataset => dataset.data);
+    assert.equal(points.length, 8);
+    assert.deepEqual(points.find(point => point.name === 'The Brass Elephant'), { x: 4, y: 4.8, name: 'The Brass Elephant', price: '$$$$' });
+    assert.deepEqual(getChartTarget(cuisine, 0, 0), { cuisine: 'American' });
+    assert.deepEqual(getChartTarget(grouped, 0, grouped.labels.indexOf('Historic District')), { query: 'Historic District', cuisine: 'American' });
+    assert.deepEqual(getChartTarget(scatter, 0, 0), { query: scatter.datasets[0].data[0].name });
+    for (const metric of ['cuisine', 'rating', 'neighborhood', 'price']) {
+        const empty = buildChartModel([], metric);
+        assert.deepEqual(empty.rows, []);
+        assert.equal(empty.mean, null);
+    }
+});
