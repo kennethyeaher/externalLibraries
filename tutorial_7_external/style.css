@@ -87,3 +87,8 @@ input { width: 100%; min-height: 46px; font: inherit; padding: 8px 12px; border:
     .explorer, .comparison { padding: 24px 20px; }
     #explore-form { grid-template-columns: 1fr; }
 }
+
+/* Let wide chart tables scroll within their own region rather than widening the page. */
+#chart-table button { min-height: 36px; padding: 4px 12px; background: white; color: var(--blue); }
+#chart-table th, #chart-table td { white-space: nowrap; }
+#chart-insight { border-left: 3px solid var(--green); padding-left: 14px; margin-top: 20px; }

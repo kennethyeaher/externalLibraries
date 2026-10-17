@@ -63,12 +63,13 @@
         </section>
         <section id="examples-section" aria-label="Three library examples">
             <article class="example-card" id="chart-example">
-                <div class="example-heading"><p class="eyebrow">Chart.js / Compare</p><h2>Cuisines at a glance</h2></div>
+                <div class="example-heading"><p class="eyebrow">Chart.js / Compare</p><h2>Explore the restaurant data</h2></div>
                 <p>Count restaurants in each cuisine. This sample has one restaurant per cuisine, so every bar has the same height.</p>
-                <div class="controls"><button id="chart-button" class="demo-button" disabled>Show cuisine chart</button><label for="chart-metric">Chart view<select id="chart-metric" disabled><option value="cuisine">Cuisine counts</option><option value="rating">Restaurant ratings</option></select></label></div>
-                <p id="chart-message" role="status">Load the dataset to begin.</p>
+                <div class="controls"><button id="chart-button" class="demo-button" disabled>Show cuisine chart</button><label for="chart-metric">Chart view<select id="chart-metric" disabled><option value="cuisine">Cuisine counts</option><option value="rating">Restaurant ratings</option><option value="neighborhood">Cuisine mix by neighborhood</option><option value="price">Price tier vs. rating</option></select></label><button id="download-chart" disabled>Download chart as PNG</button></div>
+                <p id="chart-insight" class="note">Start with cuisine counts, then compare ratings, neighborhoods, or price tiers.</p>
+                <p id="chart-message" role="status" tabindex="-1">Load the dataset to begin.</p>
                 <div class="chart-container"><canvas id="restaurant-chart" role="img" aria-label="Restaurant counts by cuisine; exact values appear in the table below"></canvas></div>
-                <div id="chart-table"></div>
+                <div id="chart-table" class="table-scroll"></div>
                 <details><summary>See the integration pattern</summary><pre><code>new Chart(canvas, { type: 'bar', data: processedData });</code></pre></details>
             </article>
             <article class="example-card" id="map-example">

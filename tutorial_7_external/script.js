@@ -1,3 +1,4 @@
+import { buildChartModel, getChartTarget } from './chart-data.js';
 import { loadRestaurantData, checkAllLibraryStatus, createRestaurantCards, createTextElement } from './tutorial-support.js';
 import { countCuisines, getRestaurantCoordinates, selectRestaurants } from './data.js';
 
@@ -50,26 +51,19 @@ document.querySelector('#explore-form').addEventListener('input', updateExplorer
 document.querySelector('#explore-form').addEventListener('submit', event => event.preventDefault());
 document.querySelector('#reset-filters').addEventListener('click', resetFilters);
 document.querySelector('#chart-metric').addEventListener('change', createMyChart);
+document.querySelector('#download-chart').addEventListener('click', downloadChart);
 document.querySelector('#download-results').addEventListener('click', downloadResults);
 document.querySelector('#restaurant-cards').addEventListener('click', toggleComparison);
 document.querySelector('#clear-shortlist').addEventListener('click', clearShortlist);
 document.querySelector('#animation-button').addEventListener('click', animateMyCards);
 reducedMotion.addEventListener('change', restoreVisibleCards);
 
-/** Render exact cuisine counts or ratings as a table and enhance them with Chart.js when available. */
-function createMyChart() {
-    if (!restaurants.length) return;
-    chartRequested = true;
-    const selected = getSelectedRestaurants();
-    const isRating = document.querySelector('#chart-metric').value === 'rating';
-    const cuisineTotals = countCuisines(selected);
-    const labels = isRating ? selected.map(restaurant => restaurant.name) : cuisineTotals.labels;
-    const counts = isRating ? selected.map(restaurant => restaurant.rating) : cuisineTotals.counts;
-    const metricTitle = isRating ? 'Restaurant ratings' : 'Restaurants by cuisine';
+/** Render chart values and keyboard exploration controls before attempting the canvas enhancement. */
+function renderChartTable(model) {
     const table = document.createElement('table');
-    table.append(createTextElement('caption', metricTitle));
+    table.append(createTextElement('caption', model.title));
     const header = document.createElement('tr');
-    (isRating ? ['Restaurant', 'Rating / 5'] : ['Cuisine', 'Restaurants']).forEach(text => {
+    [...model.headers, 'Explore'].forEach(text => {
         const cell = createTextElement('th', text);
         cell.scope = 'col';
         header.append(cell);
@@ -77,45 +71,146 @@ function createMyChart() {
     const head = document.createElement('thead');
     head.append(header);
     const body = document.createElement('tbody');
-    labels.forEach((cuisine, index) => {
+    model.rows.forEach((values, index) => {
         const row = document.createElement('tr');
-        row.append(createTextElement('td', cuisine), createTextElement('td', counts[index]));
+        values.forEach(value => row.append(createTextElement('td', value)));
+        const actionCell = document.createElement('td');
+        const button = createTextElement('button', 'Explore');
+        button.type = 'button';
+        button.setAttribute('aria-label', `Explore ${values[0]}`);
+        button.addEventListener('click', () => applyChartTarget(model.targets[index]));
+        actionCell.append(button);
+        row.append(actionCell);
         body.append(row);
     });
     table.append(head, body);
     document.querySelector('#chart-table').replaceChildren(table);
+}
+
+/** Narrow shared results using a chart selection, retaining price and minimum rating criteria. */
+function applyChartTarget(target) {
+    if (target.query !== undefined) document.querySelector('#restaurant-search').value = target.query;
+    if (target.cuisine !== undefined) document.querySelector('#cuisine-filter').value = target.cuisine;
+    updateExplorer();
+    document.querySelector('#chart-message').focus({ preventScroll: true });
+}
+
+/** Build scales for the required cuisine count chart and the three additional views. */
+function getChartScales(metric) {
+    const ratingAxis = { beginAtZero: true, max: 5, title: { display: true, text: 'Rating / 5' } };
+    if (metric === 'rating') return {
+        x: ratingAxis, y: { ticks: { autoSkip: false }, title: { display: true, text: 'Restaurant' } }
+    };
+    if (metric === 'price') return {
+        x: { min: 0.5, max: 4.5, afterBuildTicks: scale => { scale.ticks = [1, 2, 3, 4].map(value => ({ value })); }, ticks: { stepSize: 1, callback: value => Number.isInteger(value) && value >= 1 && value <= 4 ? '$'.repeat(value) : '' }, title: { display: true, text: 'Price tier (ordered categories)' } },
+        y: ratingAxis
+    };
+    return {
+        y: { beginAtZero: true, stacked: metric === 'neighborhood', ticks: { precision: 0 }, title: { display: true, text: 'Number of restaurants' } },
+        x: { stacked: metric === 'neighborhood', title: { display: true, text: metric === 'neighborhood' ? 'Neighborhood' : 'Cuisine' } }
+    };
+}
+
+/** Draw a white export background and an optional mean rating reference using the chart plugin hooks. */
+function createChartDecoration(model) {
+    return {
+        id: 'restaurantReference',
+        beforeDraw(chart) {
+            const context = chart.ctx;
+            context.save();
+            context.globalCompositeOperation = 'destination-over';
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, chart.width, chart.height);
+            context.restore();
+        },
+        afterDatasetsDraw(chart) {
+            if (model.mean === null || !['rating', 'price'].includes(model.metric)) return;
+            const context = chart.ctx;
+            const area = chart.chartArea;
+            const isHorizontal = model.metric === 'rating';
+            const position = chart.scales[isHorizontal ? 'x' : 'y'].getPixelForValue(model.mean);
+            context.save();
+            context.strokeStyle = '#182d47';
+            context.lineWidth = 2;
+            context.setLineDash([5, 4]);
+            context.beginPath();
+            context.moveTo(isHorizontal ? position : area.left, isHorizontal ? area.top : position);
+            context.lineTo(isHorizontal ? position : area.right, isHorizontal ? area.bottom : position);
+            context.stroke();
+            context.restore();
+        }
+    };
+}
+
+/** Render the required cuisine chart or an optional analytical view with independent text fallbacks. */
+function createMyChart() {
+    if (!restaurants.length) return;
+    chartRequested = true;
+    const selected = getSelectedRestaurants();
+    const model = buildChartModel(selected, document.querySelector('#chart-metric').value);
+    renderChartTable(model);
+    document.querySelector('#chart-insight').textContent = `${model.description}${model.mean !== null && ['rating', 'price'].includes(model.metric) ? ` Matching sample average: ${model.mean.toFixed(2)} / 5.` : ''}`;
     const message = document.querySelector('#chart-message');
+    const downloadButton = document.querySelector('#download-chart');
     const canvas = document.querySelector('#restaurant-chart');
+    downloadButton.disabled = true;
     canvas.hidden = false;
-    canvas.parentElement.style.height = `${isRating ? Math.max(320, selected.length * 44) : 320}px`;
+    canvas.parentElement.style.height = `${model.metric === 'rating' ? Math.max(320, selected.length * 44) : model.metric === 'neighborhood' ? 400 : 340}px`;
     try {
         if (myChart) { myChart.destroy(); myChart = null; }
         if (typeof window.Chart !== 'function') throw new Error('Chart.js is unavailable.');
         myChart = new window.Chart(canvas, {
-            type: 'bar',
-            data: { labels, datasets: [{ label: isRating ? 'Rating / 5' : 'Restaurants', data: counts, backgroundColor: '#237569', borderRadius: 4 }] },
+            type: model.type,
+            data: { labels: model.labels, datasets: model.datasets },
+            plugins: [createChartDecoration(model)],
             options: {
-                indexAxis: isRating ? 'y' : 'x',
-                responsive: true,
-                maintainAspectRatio: false,
+                indexAxis: model.metric === 'rating' ? 'y' : 'x', responsive: true, maintainAspectRatio: false,
                 animation: reducedMotion.matches ? false : { duration: 450 },
-                plugins: { legend: { display: false }, title: { display: true, text: isRating ? 'Rating by restaurant' : 'Restaurant count by cuisine' } },
-                scales: isRating ? {
-                    x: { beginAtZero: true, max: 5, title: { display: true, text: 'Rating / 5' } },
-                    y: { ticks: { autoSkip: false }, title: { display: true, text: 'Restaurant' } }
-                } : {
-                    y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Number of restaurants' } },
-                    x: { title: { display: true, text: 'Cuisine' } }
-                }
+                interaction: { mode: 'nearest', intersect: true },
+                onClick: (event, elements) => {
+                    // Finish the current library event before replacing its chart instance.
+                    if (elements.length) {
+                        const target = getChartTarget(model, elements[0].datasetIndex, elements[0].index);
+                        queueMicrotask(() => applyChartTarget(target));
+                    }
+                },
+                plugins: {
+                    legend: { display: ['neighborhood', 'price'].includes(model.metric), position: 'bottom' },
+                    title: { display: true, text: model.title },
+                    subtitle: { display: model.mean !== null && ['rating', 'price'].includes(model.metric), text: `Dashed reference: matching average ${model.mean?.toFixed(2)} / 5` },
+                    tooltip: { callbacks: model.metric === 'price' ? {
+                        label: context => `${context.raw.name}: ${context.raw.price}, ${context.raw.y.toFixed(1)} / 5`
+                    } : {} }
+                },
+                scales: getChartScales(model.metric)
             }
         });
-        canvas.setAttribute('aria-label', `${metricTitle}; exact values appear in the table below`);
-        message.textContent = selected.length ? `${selected.length} restaurants shown. Hover or tap a bar for its ${isRating ? 'rating' : 'count'}.` : 'No restaurants match these filters. Reset filters to see all eight.';
+        canvas.setAttribute('aria-label', `${model.title}; exact values and exploration buttons appear in the table below`);
+        downloadButton.disabled = selected.length === 0;
+        message.textContent = selected.length ? `${selected.length} restaurants shown. Select a bar, point, or table Explore button to narrow every view. Reset filters restores all results.` : 'No restaurants match these filters. Reset filters to see all eight.';
     } catch (error) {
         if (myChart) { myChart.destroy(); myChart = null; }
         window.Chart?.getChart?.(canvas)?.destroy();
         canvas.hidden = true;
-        message.textContent = `${error.message} Exact values are available in the table.`;
+        message.textContent = `${error.message} Exact values and exploration controls are available in the table.`;
+    }
+}
+
+/** Download the current completed chart as a PNG, reporting failures without disrupting the data views. */
+function downloadChart() {
+    if (!myChart || !getSelectedRestaurants().length) return;
+    try {
+        myChart.stop();
+        myChart.update('none');
+        const link = document.createElement('a');
+        link.href = myChart.toBase64Image('image/png');
+        link.download = `restaurant-chart-${document.querySelector('#chart-metric').value}.png`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        document.querySelector('#chart-message').textContent = 'Chart image prepared for download. It reflects the current filters and visible legend series.';
+    } catch (error) {
+        document.querySelector('#chart-message').textContent = `The chart image could not be prepared. ${error.message} Exact values remain available in the table.`;
     }
 }
 

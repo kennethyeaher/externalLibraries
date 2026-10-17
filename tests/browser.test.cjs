@@ -300,3 +300,111 @@ test('extended exploration and comparison work when every external library is bl
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     });
 });
+
+
+test('stacked neighborhood chart has exact totals and legend controls preserve the complete table', async () => {
+    await withPage({ reducedMotion: 'reduce' }, async page => {
+        await loadRecords(page);
+        await page.locator('#chart-metric').selectOption('neighborhood');
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 4);
+        assert.deepEqual(await page.locator('#chart-table tbody tr').evaluateAll(rows => rows.map(row => row.children[row.children.length - 2].textContent)), ['2', '2', '2', '2']);
+        assert.equal(await page.evaluate(() => Chart.getChart(document.querySelector('canvas')).options.scales.x.stacked), true);
+        const legend = await page.evaluate(() => { const box = Chart.getChart(document.querySelector('canvas')).legend.legendHitBoxes[0]; return { x: box.left + box.width / 2, y: box.top + box.height / 2 }; });
+        await page.locator('canvas').click({ position: legend });
+        await page.waitForFunction(() => !Chart.getChart(document.querySelector('canvas')).isDatasetVisible(0));
+        assert.equal(await page.evaluate(() => Chart.getChart(document.querySelector('canvas')).isDatasetVisible(0)), false);
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 4);
+        assert.equal(await page.locator('.restaurant-card').count(), 8);
+    });
+});
+
+test('canvas click filters all views and keyboard table actions provide the same exploration', async () => {
+    await withPage({ reducedMotion: 'reduce' }, async page => {
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await loadRecords(page);
+        await page.locator('#map-button').click();
+        await page.locator('#chart-button').click();
+        const position = await page.evaluate(() => { const bar = Chart.getChart(document.querySelector('canvas')).getDatasetMeta(0).data[0]; return { x: bar.x, y: bar.y + 20 }; });
+        await page.locator('canvas').click({ position });
+        await page.waitForFunction(() => document.querySelector('#cuisine-filter').value === 'American');
+        assert.equal(await page.locator('.restaurant-card').count(), 1);
+        assert.equal(await page.locator('.leaflet-marker-icon').count(), 1);
+        await page.locator('#reset-filters').click();
+        await page.locator('#chart-metric').selectOption('neighborhood');
+        await page.getByRole('button', { name: 'Explore College Park', exact: true }).focus();
+        await page.keyboard.press('Enter');
+        assert.equal(await page.locator('#restaurant-search').inputValue(), 'College Park');
+        assert.equal(await page.locator('.restaurant-card').count(), 2);
+        assert.equal(await page.locator('#chart-message').evaluate(message => message === document.activeElement), true);
+        assert.deepEqual(errors, []);
+    });
+});
+
+test('price scatter uses exact price tiers and ratings with a matching sample mean', async () => {
+    await withPage({ reducedMotion: 'reduce' }, async page => {
+        await loadRecords(page);
+        await page.locator('#chart-metric').selectOption('price');
+        const plotted = await page.evaluate(() => { const chart = Chart.getChart(document.querySelector('canvas')); return { type: chart.config.type, points: chart.data.datasets.flatMap(dataset => dataset.data), max: chart.options.scales.y.max }; });
+        assert.equal(plotted.type, 'scatter');
+        assert.equal(plotted.points.length, 8);
+        assert.equal(plotted.max, 5);
+        assert.deepEqual(await page.evaluate(() => Chart.getChart(document.querySelector('canvas')).scales.x.ticks.map(tick => tick.value)), [1, 2, 3, 4]);
+        assert.deepEqual(plotted.points.find(point => point.name === 'The Brass Elephant'), { x: 4, y: 4.8, name: 'The Brass Elephant', price: '$$$$' });
+        assert.match(await page.locator('#chart-insight').textContent(), /4.36/);
+        assert.match(await page.locator('#chart-insight').textContent(), /not measured dollar amounts/);
+        await page.locator('#rating-filter').selectOption('4.5');
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 3);
+        assert.match(await page.locator('#chart-insight').textContent(), /4.63/);
+        await page.getByRole('button', { name: "Explore Milano's Italian Restaurant", exact: true }).click();
+        assert.equal(await page.locator('.restaurant-card').count(), 1);
+        await page.locator('#reset-filters').click();
+        const point = await page.evaluate(() => {
+            const chart = Chart.getChart(document.querySelector('canvas'));
+            for (let datasetIndex = 0; datasetIndex < chart.data.datasets.length; datasetIndex += 1) {
+                const index = chart.data.datasets[datasetIndex].data.findIndex(record => record.name === 'The Brass Elephant');
+                if (index >= 0) { const marker = chart.getDatasetMeta(datasetIndex).data[index]; return { x: marker.x, y: marker.y }; }
+            }
+        });
+        await page.locator('canvas').click({ position: point });
+        await page.waitForFunction(() => document.querySelector('#restaurant-search').value === 'The Brass Elephant');
+        assert.equal(await page.locator('.restaurant-card').count(), 1);
+    });
+});
+
+test('chart PNG export is a real image of the completed chart and is disabled for empty results', async () => {
+    await withPage({ acceptDownloads: true }, async page => {
+        await loadRecords(page);
+        assert.equal(await page.locator('#download-chart').isDisabled(), true);
+        await page.locator('#chart-metric').selectOption('price');
+        const downloadPromise = page.waitForEvent('download');
+        await page.locator('#download-chart').click();
+        const download = await downloadPromise;
+        assert.equal(download.suggestedFilename(), 'restaurant-chart-price.png');
+        const filesystem = require('node:fs/promises');
+        const bytes = await filesystem.readFile(await download.path());
+        assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+        assert.ok(bytes.readUInt32BE(16) > 100);
+        assert.equal(await page.evaluate(() => { const chart = Chart.getChart(document.querySelector('canvas')); return chart.ctx.getImageData(0, 0, 1, 1).data[3]; }), 255);
+        await page.locator('#restaurant-search').fill('no matching restaurant');
+        assert.equal(await page.locator('#download-chart').isDisabled(), true);
+    });
+});
+
+test('all advanced tables and exploration actions remain usable when Chart.js is blocked', async () => {
+    await withPage({ viewport: { width: 320, height: 900 } }, async page => {
+        await page.route('**/chart.min.js', route => route.abort());
+        await loadRecords(page);
+        for (const metric of ['cuisine', 'rating', 'neighborhood', 'price']) {
+            await page.locator('#chart-metric').selectOption(metric);
+            if (metric === 'cuisine') await page.locator('#chart-button').click();
+            assert.equal(await page.locator('#chart-table tbody tr').count(), metric === 'neighborhood' ? 4 : 8);
+            assert.equal(await page.locator('#download-chart').isDisabled(), true);
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        }
+        await page.getByRole('button', { name: 'Explore Sakura Sushi', exact: true }).click();
+        assert.equal(await page.locator('.restaurant-card').count(), 1);
+        await page.locator('#reset-filters').click();
+        assert.equal(await page.locator('#chart-table tbody tr').count(), 8);
+    });
+});
